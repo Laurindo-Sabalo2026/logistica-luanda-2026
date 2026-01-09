@@ -1,0 +1,17 @@
+name: Alerta Diario Logistica Luanda
+on:
+  schedule:
+    - cron: '0 7 * * *' # Isto corresponde às 08:00 de Luanda (UTC+1)
+  workflow_dispatch: # Este botão permite-nos testar manualmente agora mesmo
+jobs:
+  executar-alerta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aceder aos ficheiros do projeto
+        uses: actions/checkout@v3
+      - name: Instalar Python e Ferramentas
+        run: pip install pandas openpyxl
+      - name: Executar o Script de Alerta
+        env:
+          MINHA_SENHA: ${{ secrets.MINHA_SENHA }}
+        run: python main.py
