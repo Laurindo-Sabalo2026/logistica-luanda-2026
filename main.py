@@ -5,19 +5,30 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 def verificar_e_enviar_alerta():
+    # Nome exato como aparece no seu GitHub
     ficheiro = "meus_locais (1).xlsx"
     limite = 50000 
     
+    print(f"Tentando abrir o ficheiro: {ficheiro}")
+    
     if os.path.exists(ficheiro):
-        df = pd.read_excel(ficheiro)
-        # Filtra destinos acima de 50.000 Kz
-        caros = df[df['Custo Total (Kz)'] > limite]
-        
-        if not caros.empty:
-            corpo = f"⚠️ ALERTA LOGÍSTICA LUANDA\n\nDestinos caros encontrados:\n{caros[['Destino', 'Custo Total (Kz)']].to_string(index=False)}"
-            enviar_email(corpo)
+        try:
+            df = pd.read_excel(ficheiro, engine='openpyxl')
+            # Garante que o nome da coluna não tem espaços extras
+            df.columns = df.columns.str.strip()
+            
+            caros = df[df['Custo Total (Kz)'] > limite]
+            
+            if not caros.empty:
+                corpo = f"⚠️ ALERTA LOGÍSTICA LUANDA\n\nDestinos caros encontrados:\n{caros[['Destino', 'Custo Total (Kz)']].to_string(index=False)}"
+                enviar_email(corpo)
+                print("E-mail enviado com sucesso!")
+            else:
+                print("Nenhum destino acima do limite encontrado.")
+        except Exception as e:
+            print(f"Erro ao ler o Excel: {e}")
     else:
-        print("Erro: Ficheiro Excel não encontrado no GitHub.")
+        print(f"ERRO CRÍTICO: O ficheiro '{ficheiro}' não foi encontrado na pasta principal.")
 
 def enviar_email(conteudo):
     meu_email = "laurindokutala.sabalo@gmail.com"
