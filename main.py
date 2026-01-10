@@ -37,18 +37,21 @@ def verificar_e_enviar_alerta():
 
 def enviar_email(conteudo):
     meu_email = "laurindokutala.sabalo@gmail.com"
+    # Certifique-se de que MINHA_SENHA no GitHub não tem espaços
     minha_senha = os.environ.get('MINHA_SENHA') 
     
     msg = MIMEMultipart()
     msg['From'] = meu_email
     msg['To'] = "laurics10@gmail.com"
-    msg['Subject'] = "Relatório de Alerta - Logística Luanda 2026"
+    msg['Subject'] = "ALERTA: Custo Logística Luanda"
     msg.attach(MIMEText(conteudo, 'plain'))
     
-    with smtplib.SMTP('smtp.gmail.com', 587) as server:
-        server.starttls()
+    try:
+        # Usamos a porta 465 que é mais estável para o Gmail
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(meu_email, minha_senha)
         server.sendmail(meu_email, "laurics10@gmail.com", msg.as_string())
-
-if __name__ == "__main__":
-    verificar_e_enviar_alerta()
+        server.close()
+        print("Conexão com Gmail realizada com sucesso!")
+    except Exception as e:
+        print(f"Erro no servidor de e-mail: {e}")
