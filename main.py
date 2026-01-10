@@ -37,21 +37,18 @@ def verificar_e_enviar_alerta():
 
 def enviar_email(conteudo):
     meu_email = "laurindokutala.sabalo@gmail.com"
-    # Certifique-se de que MINHA_SENHA no GitHub não tem espaços
-    minha_senha = os.environ.get('MINHA_SENHA') 
+    minha_senha = os.environ.get('MINHA_SENHA').replace(" ", "") # Remove espaços se existirem
     
-    msg = MIMEMultipart()
+    # Mensagem ultra simples para passar pelo filtro do Gmail
+    msg = MIMEText(conteudo)
+    msg['Subject'] = "Teste Logistica"
     msg['From'] = meu_email
     msg['To'] = "laurics10@gmail.com"
-    msg['Subject'] = "ALERTA: Custo Logística Luanda"
-    msg.attach(MIMEText(conteudo, 'plain'))
     
     try:
-        # Usamos a porta 465 que é mais estável para o Gmail
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        server.login(meu_email, minha_senha)
-        server.sendmail(meu_email, "laurics10@gmail.com", msg.as_string())
-        server.close()
-        print("Conexão com Gmail realizada com sucesso!")
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(meu_email, minha_senha)
+            server.sendmail(meu_email, "laurics10@gmail.com", msg.as_string())
+        print("Enviado com sucesso para o Gmail!")
     except Exception as e:
-        print(f"Erro no servidor de e-mail: {e}")
+        print(f"Erro no envio: {e}")
