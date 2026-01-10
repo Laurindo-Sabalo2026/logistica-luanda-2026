@@ -5,30 +5,35 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 def verificar_e_enviar_alerta():
-    # Nome exato como aparece no seu GitHub
     ficheiro = "meus_locais (1).xlsx"
-    limite = 50000 
-    
-    print(f"Tentando abrir o ficheiro: {ficheiro}")
     
     if os.path.exists(ficheiro):
         try:
             df = pd.read_excel(ficheiro, engine='openpyxl')
-            # Garante que o nome da coluna não tem espaços extras
-            df.columns = df.columns.str.strip()
+            # Esta linha limpa espaços e caracteres invisíveis nos títulos
+            df.columns = [str(c).strip() for c in df.columns]
             
-            caros = df[df['Custo Total (Kz)'] > limite]
+            # Procuramos qualquer coluna que contenha a palavra "Custo"
+            coluna_custo = [c for c in df.columns if 'Custo' in c]
             
-            if not caros.empty:
-                corpo = f"⚠️ ALERTA LOGÍSTICA LUANDA\n\nDestinos caros encontrados:\n{caros[['Destino', 'Custo Total (Kz)']].to_string(index=False)}"
-                enviar_email(corpo)
-                print("E-mail enviado com sucesso!")
+            if coluna_custo:
+                col_nome = coluna_custo[0]
+                # Filtra valores acima de 50.000 Kz
+                caros = df[df[col_nome] > 50000]
+                
+                if not caros.empty:
+                    corpo = f"⚠️ ALERTA LOGÍSTICA LUANDA\n\nDestinos caros encontrados:\n{caros[['Destino', col_nome]].to_string(index=False)}"
+                    enviar_email(corpo)
+                    print(f"E-mail enviado! Encontrados {len(caros)} destinos.")
+                else:
+                    print("Nenhum custo acima de 50.000 Kz encontrado.")
             else:
-                print("Nenhum destino acima do limite encontrado.")
+                print(f"ERRO: Não encontrei nenhuma coluna com o nome 'Custo'. Colunas lidas: {list(df.columns)}")
+                
         except Exception as e:
-            print(f"Erro ao ler o Excel: {e}")
+            print(f"Erro no processamento: {e}")
     else:
-        print(f"ERRO CRÍTICO: O ficheiro '{ficheiro}' não foi encontrado na pasta principal.")
+        print("Ficheiro não encontrado no repositório.")
 
 def enviar_email(conteudo):
     meu_email = "laurindokutala.sabalo@gmail.com"
@@ -37,7 +42,7 @@ def enviar_email(conteudo):
     msg = MIMEMultipart()
     msg['From'] = meu_email
     msg['To'] = "laurics10@gmail.com"
-    msg['Subject'] = "Relatório de Alerta - Luanda 2026"
+    msg['Subject'] = "Relatório de Alerta - Logística Luanda 2026"
     msg.attach(MIMEText(conteudo, 'plain'))
     
     with smtplib.SMTP('smtp.gmail.com', 587) as server:
