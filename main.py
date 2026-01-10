@@ -19,7 +19,7 @@ def verificar_e_enviar_alerta():
             if coluna_custo:
                 col_nome = coluna_custo[0]
                 # Filtra valores acima de 50.000 Kz
-                caros = df[df[col_nome] > 50000]
+                caros = df[df[col_nome] > 100]
                 
                 if not caros.empty:
                     corpo = f"⚠️ ALERTA LOGÍSTICA LUANDA\n\nDestinos caros encontrados:\n{caros[['Destino', col_nome]].to_string(index=False)}"
