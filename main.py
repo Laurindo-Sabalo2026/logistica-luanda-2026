@@ -13,28 +13,30 @@ def criar_pdf_executivo(df, col_nome, col_custo, nome_pdf):
     pdf = FPDF()
     pdf.add_page()
     
-    # --- LOGO PROFISSIONAL DESENHADO ---
-    pdf.set_fill_color(0, 51, 102) 
-    pdf.circle(25, 20, 10, 'F')
-    pdf.set_draw_color(255, 255, 255)
-    pdf.line(20, 22, 30, 22)
-    pdf.line(26, 18, 30, 22)
-    pdf.line(26, 26, 30, 22)
+    # --- LOGO CORRIGIDO (USANDO RETÂNGULO EM VEZ DE CÍRCULO) ---
+    pdf.set_fill_color(0, 51, 102) # Azul Marinho
+    pdf.rect(15, 15, 15, 15, 'F')  # Desenha um quadrado sólido
+    
+    pdf.set_text_color(255, 255, 255) # Branco
+    pdf.set_font("Arial", 'B', 12)
+    pdf.text(19, 25, "LL") # Iniciais dentro do quadrado
 
-    # CABEÇALHO
-    pdf.set_xy(40, 15)
-    pdf.set_font("Arial", 'B', 20)
+    # CABEÇALHO DA EMPRESA
+    pdf.set_xy(35, 15)
+    pdf.set_font("Arial", 'B', 18)
     pdf.set_text_color(0, 51, 102)
     pdf.cell(100, 10, "LAURINDO LOGISTICA & SERVICOS", ln=True)
-    pdf.set_font("Arial", 'I', 10)
-    pdf.set_text_color(255, 128, 0)
-    pdf.set_xy(40, 23)
+    
+    pdf.set_font("Arial", 'I', 9)
+    pdf.set_text_color(255, 128, 0) # Laranja
+    pdf.set_xy(35, 22)
     pdf.cell(100, 5, "Excelencia e Confianca em Luanda", ln=True)
+    
     pdf.ln(15)
-    pdf.line(10, 42, 200, 42)
+    pdf.line(10, 40, 200, 40)
     pdf.ln(10)
 
-    # TABELA
+    # --- TABELA ---
     pdf.set_font("Arial", 'B', 12)
     pdf.set_fill_color(0, 51, 102)
     pdf.set_text_color(255, 255, 255)
@@ -47,9 +49,6 @@ def criar_pdf_executivo(df, col_nome, col_custo, nome_pdf):
         pdf.cell(110, 10, f" {str(row[col_nome])}", border=1)
         pdf.cell(40, 10, f"{row[col_custo]:,.2f}", border=1, ln=True, align='C')
     
-    pdf.ln(20)
-    pdf.set_font("Arial", 'I', 9)
-    pdf.cell(200, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y')}", align='R')
     pdf.output(nome_pdf)
 
 def enviar_email(img_nome, pdf_nome):
@@ -58,7 +57,7 @@ def enviar_email(img_nome, pdf_nome):
     destinatario = "laurics10@gmail.com"
     msg = MIMEMultipart()
     msg['Subject'] = f"📊 RELATORIO OFICIAL: {datetime.now().strftime('%d/%m/%Y')}"
-    msg.attach(MIMEText("Ola Laurindo, o seu relatorio com logótipo ja foi gerado.", 'plain'))
+    msg.attach(MIMEText("Ola Laurindo, o seu relatorio logistico foi gerado com sucesso.", 'plain'))
     
     for arq in [pdf_nome, img_nome]:
         if os.path.exists(arq):
