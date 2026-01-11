@@ -1,19 +1,30 @@
 name: Relatorio Diario Automatico
 
 on:
-  schedule:
-    - cron: '0 7 * * *'
+  push:
+    branches: [ "main" ]
   workflow_dispatch:
+  # Agendamento para as 08:00 de Luanda (Segunda a Sexta)
+  schedule:
+    - cron: '0 7 * * 1-5'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Checkout do codigo
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      - run: pip install pandas openpyxl fpdf matplotlib
-      - env:
+
+      - name: Instalar Bibliotecas
+        run: |
+          pip install pandas openpyxl fpdf matplotlib
+
+      - name: Executar Robo
+        env:
           MINHA_SENHA: ${{ secrets.MINHA_SENHA }}
         run: python main.py
