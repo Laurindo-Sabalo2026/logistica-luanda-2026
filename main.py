@@ -45,12 +45,19 @@ def criar_pdf_executivo(df, col_nome, col_custo, nome_pdf):
         pdf.cell(110, 10, f" {str(row[col_nome])}", border=1)
         pdf.cell(40, 10, f"{row[col_custo]:,.2f}", border=1, ln=True, align='C')
     
-    # ASSINATURA
-    pdf.ln(30)
-    pdf.line(60, pdf.get_y(), 150, pdf.get_y())
+    # --- ASSINATURA E DATA (CORRIGIDO) ---
+    pdf.ln(25)
+    pdf.set_draw_color(0, 0, 0)
+    pdf.line(60, pdf.get_y(), 150, pdf.get_y()) # Linha para assinar
     pdf.ln(2)
     pdf.set_font("Arial", 'B', 10)
-    pdf.cell(200, 10, "Laurindo Sabalo - Direccao de Logistica", ln=True, align='C')
+    pdf.cell(200, 8, "Laurindo Sabalo - Direccao de Logistica", ln=True, align='C')
+    
+    # DATA LOGO ABAIXO DA ASSINATURA
+    pdf.set_font("Arial", 'I', 9)
+    data_hoje = datetime.now().strftime('%d/%m/%Y')
+    pdf.cell(200, 8, f"Documento Gerado em Luanda - Data: {data_hoje}", ln=True, align='C')
+    
     pdf.output(nome_pdf)
 
 def enviar_email(img_nome, pdf_nome):
@@ -58,8 +65,8 @@ def enviar_email(img_nome, pdf_nome):
     senha = os.environ.get('MINHA_SENHA').replace(" ", "")
     destinatario = "laurics10@gmail.com"
     msg = MIMEMultipart()
-    msg['Subject'] = f"📊 RELATORIO COMPLETO: {datetime.now().strftime('%d/%m/%Y')}"
-    msg.attach(MIMEText("Ola Laurindo, segue o relatorio com Logotipo, Tabela e Grafico.", 'plain'))
+    msg['Subject'] = f"📊 RELATORIO FINAL COMPLETO: {datetime.now().strftime('%d/%m/%Y')}"
+    msg.attach(MIMEText("Ola Laurindo, o seu sistema esta pronto. Seguem todos os anexos.", 'plain'))
     
     for arq in [pdf_nome, img_nome]:
         if os.path.exists(arq):
@@ -85,10 +92,10 @@ def verificar_e_enviar_tudo():
             plt.figure(figsize=(10, 6))
             plt.bar(caros['Endereço'].str[:15], caros[col_custo], color='orange')
             plt.title('Custos de Transporte - Luanda')
-            plt.savefig('grafico_oficial.png') # Nome único para o gráfico
+            plt.savefig('grafico_oficial.png')
             
-            criar_pdf_executivo(caros, 'Endereço', col_custo, "Relatorio_Laurindo.pdf")
-            enviar_email('grafico_oficial.png', "Relatorio_Laurindo.pdf")
+            criar_pdf_executivo(caros, 'Endereço', col_custo, "Relatorio_Final_Laurindo.pdf")
+            enviar_email('grafico_oficial.png', "Relatorio_Final_Laurindo.pdf")
             print("Sucesso Total!")
     except Exception as e: print(f"Erro: {e}")
 
