@@ -12,7 +12,7 @@ def criar_pdf_final(df, col_nome, col_custo, nome_pdf, caminho_grafico):
     pdf = FPDF()
     pdf.add_page()
     
-    # --- LOGOTIPO ---
+    # --- LOGOTIPO AZUL ---
     pdf.set_fill_color(0, 102, 204) 
     pdf.rect(15, 15, 15, 15, 'F')  
     pdf.set_text_color(255, 255, 255) 
@@ -27,12 +27,11 @@ def criar_pdf_final(df, col_nome, col_custo, nome_pdf, caminho_grafico):
     pdf.line(10, 40, 200, 40)
     pdf.ln(10)
 
-    # --- TABELA COM NOVA COLUNA 'STATUS' ---
+    # --- TABELA COM TRÊS COLUNAS ---
     pdf.set_font("Arial", 'B', 11)
     pdf.set_fill_color(0, 102, 204)
     pdf.set_text_color(255, 255, 255)
     
-    # Cabeçalho (Aumentamos para 3 colunas)
     pdf.cell(80, 10, " Destino", border=1, fill=True)
     pdf.cell(35, 10, "Custo (Kz)", border=1, fill=True, align='C')
     pdf.cell(35, 10, "Status", border=1, ln=True, fill=True, align='C')
@@ -43,14 +42,25 @@ def criar_pdf_final(df, col_nome, col_custo, nome_pdf, caminho_grafico):
     for _, row in df.iterrows():
         pdf.cell(80, 10, f" {str(row[col_nome])[:35]}", border=1)
         pdf.cell(35, 10, f"{row[col_custo]:,.2f}", border=1, align='C')
-        # Adicionando o Status da nova coluna do Excel
         status_texto = str(row['Status']) if 'Status' in df.columns else "N/A"
         pdf.cell(35, 10, f"{status_texto}", border=1, ln=True, align='C')
     
-    # --- GRÁFICO (AGORA EM VERDE) ---
+    # --- GRÁFICO VERDE ---
     if os.path.exists(caminho_grafico):
-        pdf.ln(10)
-        pdf.image(caminho_grafico, x=10, w=180)
+        pdf.ln(5)
+        pdf.image(caminho_grafico, x=15, w=170)
+    
+    # --- RECOLOCAR ASSINATURA E DATA (AS LINHAS QUE SUMIRAM) ---
+    pdf.ln(5)
+    # Linha horizontal para assinatura
+    pdf.line(60, pdf.get_y() + 5, 150, pdf.get_y() + 5)
+    pdf.ln(7)
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(200, 8, "Laurindo Sabalo - Direccao de Logistica", ln=True, align='C')
+    
+    pdf.set_font("Arial", 'I', 9)
+    data_hoje = datetime.now().strftime('%d/%m/%Y')
+    pdf.cell(200, 8, f"Gerado em Luanda - Data: {data_hoje}", ln=True, align='C')
     
     pdf.output(nome_pdf)
 
@@ -60,8 +70,8 @@ def enviar_email(pdf_nome):
     destinatario = "laurics10@gmail.com"
     
     msg = MIMEMultipart()
-    msg['Subject'] = f"📊 RELATORIO ATUALIZADO: {datetime.now().strftime('%d/%m/%Y')}"
-    msg.attach(MIMEText("Olá Laurindo, segue o relatório com a nova coluna de Status e gráfico verde.", 'plain'))
+    msg['Subject'] = f"📊 RELATORIO FINAL: {datetime.now().strftime('%d/%m/%Y')}"
+    msg.attach(MIMEText("Olá Laurindo, aqui está o relatório completo com todas as informações.", 'plain'))
     
     if os.path.exists(pdf_nome):
         with open(pdf_nome, "rb") as f:
@@ -84,18 +94,16 @@ def executar():
         caros = df[df[col_custo] > 100]
         
         if not caros.empty:
-            # --- MUDANÇA DE COR PARA VERDE (color='seagreen') ---
             plt.figure(figsize=(10, 5))
             plt.bar(caros['Endereço'].str[:15], caros[col_custo], color='seagreen') 
-            plt.title('Análise de Custos de Logística')
-            plt.ylabel('Kwanza (Kz)')
-            plt.savefig('grafico_verde.png')
+            plt.title('Analise de Custos de Logistica')
+            plt.savefig('grafico_final.png')
             plt.close()
             
-            nome_pdf = "Relatorio_Laurindo_Premium.pdf"
-            criar_pdf_final(caros, 'Endereço', col_custo, nome_pdf, 'grafico_verde.png')
+            nome_pdf = "Relatorio_Final_Laurindo.pdf"
+            criar_pdf_final(caros, 'Endereço', col_custo, nome_pdf, 'grafico_final.png')
             enviar_email(nome_pdf)
-            print("Enviado com sucesso!")
+            print("Sucesso!")
     except Exception as e:
         print(f"Erro: {e}")
 
