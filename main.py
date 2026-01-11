@@ -3,11 +3,10 @@ import os
 import smtplib
 import matplotlib.pyplot as plt
 from fpdf import FPDF
-import requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
+from email.mime.application import MIMEApplication
+from email.mime.image import MIMEImage
 
 def criar_pdf(df, col_nome, col_custo, nome_pdf):
     pdf = FPDF()
@@ -24,26 +23,34 @@ def criar_pdf(df, col_nome, col_custo, nome_pdf):
         pdf.cell(40, 10, str(row[col_custo]), border=1, ln=True)
     pdf.output(nome_pdf)
 
-def enviar_email_com_anexos(lista_anexos):
+def enviar_email_v2(img_nome, pdf_nome):
     meu_email = "laurindokutala.sabalo@gmail.com"
     senha = os.environ.get('MINHA_SENHA').replace(" ", "")
+    destinatario = "laurics10@gmail.com"
+
     msg = MIMEMultipart()
-    msg['Subject'] = "📊 RELATORIO COMPLETO: Logistica Luanda"
-    msg.attach(MIMEText("Ola Laurindo, seguem em anexo o GRAFICO e o PDF com os dados.", 'plain'))
-    
-    # CORREÇÃO AQUI: Agora ele percorre cada anexo corretamente
-    for nome_ficheiro in lista_anexos:
-        if os.path.exists(nome_ficheiro):
-            with open(nome_ficheiro, "rb") as anexo:
-                p = MIMEBase("application", "octet-stream")
-                p.set_payload(anexo.read())
-            encoders.encode_base64(p)
-            p.add_header("Content-Disposition", f"attachment; filename={nome_ficheiro}")
-            msg.attach(p)
-            
+    msg['Subject'] = "📊 AGORA COM GRAFICO: Logistica Luanda"
+    msg['From'] = meu_email
+    msg['To'] = destinatario
+    msg.attach(MIMEText("Ola Laurindo, seguem os dois anexos separados abaixo.", 'plain'))
+
+    # ANEXAR PDF (Usando formato Application)
+    if os.path.exists(pdf_nome):
+        with open(pdf_nome, "rb") as f:
+            pdf_anexo = MIMEApplication(f.read(), _subtype="pdf")
+            pdf_anexo.add_header('Content-Disposition', 'attachment', filename=pdf_nome)
+            msg.attach(pdf_anexo)
+
+    # ANEXAR GRAFICO (Usando formato Image para o Gmail aceitar)
+    if os.path.exists(img_nome):
+        with open(img_nome, "rb") as f:
+            img_anexo = MIMEImage(f.read())
+            img_anexo.add_header('Content-Disposition', 'attachment', filename=img_nome)
+            msg.attach(img_anexo)
+
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
         s.login(meu_email, senha)
-        s.sendmail(meu_email, "laurics10@gmail.com", msg.as_string())
+        s.sendmail(meu_email, destinatario, msg.as_string())
 
 def verificar_e_enviar_tudo():
     excel = "meus_locais (1).xlsx"
@@ -55,19 +62,21 @@ def verificar_e_enviar_tudo():
         caros = df[df[col_custo] > 100]
 
         if not caros.empty:
-            # 1. Gerar Grafico
-            plt.figure(figsize=(8, 5))
-            plt.bar(caros['Endereço'].str[:12], caros[col_custo], color='orange')
-            plt.title('Custos Elevados Luanda')
-            plt.tight_layout() # Garante que o gráfico não saia cortado
-            plt.savefig('grafico.png')
+            # 1. Gerar Grafico (Fundo branco para o Gmail ler melhor)
+            plt.figure(figsize=(10, 6), facecolor='white')
+            plt.bar(caros['Endereço'].str[:15], caros[col_custo], color='orange')
+            plt.title('Custos Elevados de Logistica em Luanda')
+            plt.ylabel('Preco (Kz)')
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            plt.savefig('grafico_luanda.png')
             
             # 2. Gerar PDF
-            criar_pdf(caros, 'Endereço', col_custo, "relatorio.pdf")
+            criar_pdf(caros, 'Endereço', col_custo, "relatorio_luanda.pdf")
             
-            # 3. Enviar Email com a lista de ficheiros
-            enviar_email_com_anexos(["grafico.png", "relatorio.pdf"])
-            print("!!! TUDO ENVIADO COM SUCESSO !!!")
+            # 3. Enviar
+            enviar_email_v2('grafico_luanda.png', 'relatorio_luanda.pdf')
+            print("!!! SUCESSO TOTAL !!!")
     except Exception as e:
         print(f"Erro: {e}")
 
