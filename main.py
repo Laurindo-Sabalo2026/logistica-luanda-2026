@@ -26,7 +26,7 @@ class PDF_Logistica(FPDF):
         self.line(10, 30, 287, 30)
         self.ln(10)
 
-def criar_pdf_finalissimo(df, col_nome, col_custo, nome_pdf, caminho_grafico):
+def criar_pdf_versao_final(df, col_nome, col_custo, nome_pdf, caminho_grafico):
     pdf = PDF_Logistica('L', 'mm', 'A4')
     pdf.add_page()
     total_geral = df[col_custo].sum()
@@ -46,15 +46,14 @@ def criar_pdf_finalissimo(df, col_nome, col_custo, nome_pdf, caminho_grafico):
         perc = (custo_v / total_geral) * 100 if total_geral > 0 else 0
         status_raw = str(row.get('Status', 'Pendente')).strip().lower()
         
-        # PINTA A LINHA DE ACORDO COM O STATUS
         if status_raw in ['ok', 'concluído', 'concluido']:
-            pdf.set_text_color(0, 128, 0) # Verde
+            pdf.set_text_color(0, 128, 0)
             txt_status = "Concluído"
         elif status_raw in ['atrasado', 'atraso']:
-            pdf.set_text_color(200, 0, 0) # Vermelho
+            pdf.set_text_color(200, 0, 0)
             txt_status = "Atrasado"
         else:
-            pdf.set_text_color(0, 0, 0) # Preto para Pendente
+            pdf.set_text_color(0, 0, 0)
             txt_status = "Pendente"
 
         pdf.cell(50, 8, f" {str(row[col_nome])[:25]}", border=1)
@@ -62,9 +61,7 @@ def criar_pdf_finalissimo(df, col_nome, col_custo, nome_pdf, caminho_grafico):
         pdf.cell(15, 8, f"{perc:.1f}%", border=1, align='C')
         pdf.cell(25, 8, f" {txt_status}", border=1, align='C')
         pdf.cell(35, 8, f" {str(row.get('Motorista', 'N/A'))[:18]}", border=1, align='C')
-        # Busca a data em qualquer coluna que comece com 'Data'
-        col_data = [c for c in df.columns if 'Data' in c][0]
-        pdf.cell(30, 8, f" {str(row[col_data])}", border=1, align='C')
+        pdf.cell(30, 8, f" {str(row.get('Data Entr.', '12/01/2026'))}", border=1, align='C')
         pdf.cell(92, 8, f" {str(row.get('Obs', ''))[:55]}", border=1, ln=True)
 
     # --- LINHA TOTAL ---
@@ -76,30 +73,48 @@ def criar_pdf_finalissimo(df, col_nome, col_custo, nome_pdf, caminho_grafico):
     pdf.cell(30, 10, f"{total_geral:,.2f}", border=1, fill=True, align='C')
     pdf.set_text_color(0, 0, 0)
     pdf.cell(15, 10, "100%", border=1, fill=True, align='C')
-    pdf.cell(182, 10, " Kwanzas (Relatorio Auditado)", border=1, ln=True, fill=True)
+    pdf.cell(182, 10, " Kwanzas (Relatorio de Luanda)", border=1, ln=True, fill=True)
 
-    # --- ÁREA INFERIOR ---
-    pdf.ln(10)
+    # --- ÁREA INFERIOR (REAJUSTADA PARA CABER TUDO) ---
+    pdf.ln(5) # Reduzi o salto para ganhar espaço no fundo
     y_pos = pdf.get_y()
-    if os.path.exists(caminho_grafico):
-        pdf.image(caminho_grafico, x=15, y=y_pos, w=130)
     
-    # ASSINATURA E A LINHA DA DATA QUE FALTAVA
-    pdf.set_xy(180, y_pos + 15)
+    if os.path.exists(caminho_grafico):
+        pdf.image(caminho_grafico, x=15, y=y_pos, w=125) # Gráfico ligeiramente menor
+    
+    # Assinatura (Posicionada mais para cima)
+    pdf.set_xy(180, y_pos + 10)
     pdf.set_draw_color(0, 0, 0)
-    pdf.line(180, y_pos + 20, 270, y_pos + 20)
-    pdf.set_xy(180, y_pos + 22)
+    pdf.line(180, y_pos + 15, 270, y_pos + 15)
+    
+    pdf.set_xy(180, y_pos + 17)
     pdf.set_font("Arial", 'B', 10)
     pdf.cell(90, 5, "Laurindo Sabalo", ln=True, align='C')
     
-    # AQUI ESTÁ A LINHA DA DATA RESTAURADA
-    pdf.set_x(180)
+    # --- A LINHA DA DATA (FORÇADA NO RODAPÉ) ---
+    pdf.set_xy(180, y_pos + 23) # Nova posição garantida
     pdf.set_font("Arial", 'I', 8)
     pdf.set_text_color(100, 100, 100)
-    data_agora = datetime.now().strftime('%d/%m/%Y %H:%M')
-    pdf.cell(90, 5, f"Gerado em Luanda: {data_agora}", ln=True, align='C')
+    data_formatada = datetime.now().strftime('%d/%m/%Y %H:%M')
+    pdf.cell(90, 5, f"Relatorio gerado em: {data_formatada}", ln=True, align='C')
     
     pdf.output(nome_pdf)
+
+def enviar_email(pdf_nome):
+    meu_email = "laurindokutala.sabalo@gmail.com"
+    senha = os.environ.get('MINHA_SENHA', '').replace(" ", "")
+    destinatario = "laurics10@gmail.com"
+    msg = MIMEMultipart()
+    msg['Subject'] = f"📊 RELATORIO COMPLETO: {datetime.now().strftime('%d/%m/%Y')}"
+    msg.attach(MIMEText("Segue o relatorio com a data de rodapé corrigida.", 'plain'))
+    if os.path.exists(pdf_nome):
+        with open(pdf_nome, "rb") as f:
+            anexo = MIMEApplication(f.read(), _subtype="pdf")
+            anexo.add_header('Content-Disposition', 'attachment', filename=pdf_nome)
+            msg.attach(anexo)
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
+        s.login(meu_email, senha)
+        s.sendmail(meu_email, destinatario, msg.as_string())
 
 def executar():
     excel = "meus_locais (1).xlsx"
@@ -108,15 +123,17 @@ def executar():
         df = pd.read_excel(excel)
         df.columns = [str(c).strip() for c in df.columns]
         col_custo = [c for c in df.columns if 'Custo' in c][0]
-        plt.figure(figsize=(7, 3.5))
+        
+        plt.figure(figsize=(7, 3.2)) # Reduzi a altura do gráfico
         plt.bar(df['Endereço'].str[:10], df[col_custo], color='#2E8B57') 
         plt.title('Custos de Transporte')
         plt.tight_layout()
-        plt.savefig('grafico.png')
+        plt.savefig('grafico_v3.png')
         plt.close()
-        nome_pdf = "Relatorio_Laurindo_Final.pdf"
-        criar_pdf_finalissimo(df, 'Endereço', col_custo, nome_pdf, 'grafico.png')
-        # ... código de envio de email aqui ...
+        
+        nome_pdf = "Relatorio_Final_Corrigido.pdf"
+        criar_pdf_versao_final(df, 'Endereço', col_custo, nome_pdf, 'grafico_v3.png')
+        enviar_email(nome_pdf)
     except Exception as e: print(f"Erro: {e}")
 
 if __name__ == "__main__":
