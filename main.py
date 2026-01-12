@@ -12,7 +12,7 @@ def criar_pdf_final(df, col_nome, col_custo, nome_pdf, caminho_grafico):
     pdf = FPDF()
     pdf.add_page()
     
-    # --- CABEÇALHO (AZUL ROYAL - Igual ao que deu certo) ---
+    # --- CABEÇALHO (AZUL ROYAL) ---
     pdf.set_fill_color(0, 102, 204) 
     pdf.rect(15, 15, 15, 15, 'F')  
     pdf.set_text_color(255, 255, 255) 
@@ -34,7 +34,7 @@ def criar_pdf_final(df, col_nome, col_custo, nome_pdf, caminho_grafico):
     pdf.line(15, 35, 195, 35) 
     pdf.ln(5)
 
-    # --- TABELA ---
+    # --- TABELA DE DADOS ---
     pdf.set_font("Arial", 'B', 11)
     pdf.set_fill_color(0, 102, 204)
     pdf.set_text_color(255, 255, 255)
@@ -47,14 +47,17 @@ def criar_pdf_final(df, col_nome, col_custo, nome_pdf, caminho_grafico):
     pdf.set_text_color(0, 0, 0)
     
     for _, row in df.iterrows():
-        # Lógica para evitar erros de texto muito longo
         destino = str(row[col_nome])[:45]
-        custo = float(row[col_custo]) if pd.notna(row[col_custo]) else 0.0
-        
+        try:
+            custo_val = float(row[col_custo])
+            custo_texto = f"{custo_val:,.2f}"
+        except:
+            custo_texto = str(row[col_custo])
+            
         pdf.cell(90, 10, f" {destino}", border=1)
-        pdf.cell(50, 10, f"{custo:,.2f}", border=1, align='C')
+        pdf.cell(50, 10, custo_texto, border=1, align='C')
         
-        # Procura coluna Status ou usa Pendente
+        # Procura coluna Status ou define como Pendente
         val_status = "Pendente"
         for c in df.columns:
             if 'Status' in str(c):
@@ -62,18 +65,22 @@ def criar_pdf_final(df, col_nome, col_custo, nome_pdf, caminho_grafico):
         
         pdf.cell(40, 10, f" {val_status}", border=1, ln=True, align='C')
     
-    # --- GRÁFICO (Se existir) ---
+    # --- GRÁFICO ---
     if os.path.exists(caminho_grafico):
         pdf.ln(10)
         pdf.image(caminho_grafico, x=35, w=130)
     
-    # --- RODAPÉ ---
-    pdf.set_y(-35) 
+    # --- ASSINATURA E DATA (AJUSTADO PARA MAIOR ESPAÇAMENTO) ---
+    pdf.set_y(-45) # Sobe a posição da linha para dar mais margem ao fundo
     pdf.set_draw_color(0, 0, 0)
-    pdf.line(70, pdf.get_y(), 140, pdf.get_y())
-    pdf.ln(2)
+    pdf.line(70, pdf.get_y(), 140, pdf.get_y()) # Linha horizontal
+    
+    pdf.ln(5) # Espaço entre a linha e o nome
     pdf.set_font("Arial", 'B', 10)
+    pdf.set_text_color(0, 0, 0)
     pdf.cell(0, 5, "Laurindo Sabalo - Direccao de Logistica", ln=True, align='C')
+    
+    pdf.ln(4) # Espaço extra entre o nome e a data
     pdf.set_font("Arial", 'I', 9)
     pdf.set_text_color(100, 100, 100)
     pdf.cell(0, 5, f"Gerado em Luanda - Data: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='C')
@@ -82,14 +89,15 @@ def criar_pdf_final(df, col_nome, col_custo, nome_pdf, caminho_grafico):
 
 def enviar_email(pdf_nome):
     meu_email = "laurindokutala.sabalo@gmail.com"
+    # Pega a senha das variáveis de ambiente do GitHub
     senha = os.environ.get('MINHA_SENHA', '').replace(" ", "")
     destinatario = "laurinds10@gmail.com"
     
     msg = MIMEMultipart()
-    msg['Subject'] = f"REATORIO LOGISTICA ATUALIZADO: {datetime.now().strftime('%d/%m/%Y')}"
+    msg['Subject'] = f"📊 RELATORIO LOGISTICA FINAL: {datetime.now().strftime('%d/%m/%Y')}"
     msg['From'] = meu_email
     msg['To'] = destinatario
-    msg.attach(MIMEText("Relatorio oficial gerado automaticamente pelo sistema de logistica.", 'plain'))
+    msg.attach(MIMEText("Segue em anexo o relatorio oficial de logistica com layout corrigido.", 'plain'))
     
     if os.path.exists(pdf_nome):
         with open(pdf_nome, "rb") as f:
@@ -102,7 +110,7 @@ def enviar_email(pdf_nome):
         s.sendmail(meu_email, destinatario, msg.as_string())
 
 def executar():
-    # Tenta encontrar o arquivo pelo nome novo ou antigo
+    # Verifica qual arquivo existe
     excel = "dados.xlsx" if os.path.exists("dados.xlsx") else "meus_locais (1).xlsx"
     
     if not os.path.exists(excel):
@@ -113,32 +121,28 @@ def executar():
         df = pd.read_excel(excel)
         df.columns = [str(c).strip() for c in df.columns]
         
-        # Identifica as colunas dinamicamente
-        col_nome = df.columns[0] # Primeira coluna é o destino
-        col_custo = ""
-        for c in df.columns:
-            if 'Custo' in c or 'custo' in c:
-                col_custo = c
-                break
+        # Localiza colunas de Destino e Custo
+        col_nome = df.columns[0]
+        col_custo = next((c for c in df.columns if 'Custo' in c or 'custo' in c), None)
         
         if not col_custo:
-            print("Erro: Nao encontrei coluna com nome 'Custo'")
+            print("Erro: Coluna de Custo nao encontrada.")
             return
 
-        # Gera gráfico
+        # Gera o Gráfico com as primeiras linhas
         plt.figure(figsize=(8, 4))
-        # Pega as 5 maiores rotas para o gráfico não ficar bagunçado
-        dados_grafico = df.head(5)
-        plt.bar(dados_grafico[col_nome].astype(str).str[:15], dados_grafico[col_custo], color='royalblue') 
-        plt.title('Custos de Transporte - Luanda')
+        df_plot = df.head(6) # Pega os 6 primeiros para o gráfico
+        plt.bar(df_plot[col_nome].astype(str).str[:12], df_plot[col_custo], color='royalblue') 
+        plt.title('Resumo de Custos - Logistica Luanda')
         plt.ylabel('Kz')
+        plt.tight_layout()
         plt.savefig('grafico.png')
         plt.close()
         
-        nome_pdf = "Relatorio_Oficial_Logistica.pdf"
+        nome_pdf = "Relatorio_Oficial_Laurindo.pdf"
         criar_pdf_final(df, col_nome, col_custo, nome_pdf, 'grafico.png')
         enviar_email(nome_pdf)
-        print("RELATORIO ENVIADO COM SUCESSO!")
+        print("CONCLUIDO: Relatorio enviado para laurinds10@gmail.com")
 
     except Exception as e:
         print(f"Erro no processamento: {e}")
