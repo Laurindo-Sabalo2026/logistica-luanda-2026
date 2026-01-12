@@ -19,113 +19,125 @@ class PDF_Logistica(FPDF):
         self.set_font("Arial", 'I', 9)
         self.set_text_color(100, 100, 100)
         self.set_xy(30, 17)
-        self.cell(100, 5, "Monitoramento de Operacoes - Luanda", ln=True)
+        self.cell(100, 5, "Gestao de frotas e entregas - Luanda", ln=True)
         self.line(10, 30, 287, 30)
         self.ln(10)
 
-def criar_pdf_blindado(df, nome_pdf, caminho_grafico):
+def criar_pdf_final(df, nome_pdf, caminho_grafico):
     pdf = PDF_Logistica('L', 'mm', 'A4')
     pdf.add_page()
     
-    # FORÇAR A LEITURA DAS COLUNAS PELO ÍNDICE (0=A, 1=B, 2=C...)
-    # Baseado no teu Excel: A=Destino, C=Custo, D=Status, E=Motorista, F=Data
+    # Forçar conversão de custos para números para não dar erro na soma
+    df.iloc[:, 2] = pd.to_numeric(df.iloc[:, 2], errors='coerce').fillna(0)
+    total_kz = df.iloc[:, 2].sum()
     
-    total_kz = pd.to_numeric(df.iloc[:, 2], errors='coerce').sum()
-    
-    # --- CABEÇALHO ---
+    # --- CABEÇALHO DA TABELA ---
     pdf.set_font("Arial", 'B', 8)
     pdf.set_fill_color(0, 102, 204)
     pdf.set_text_color(255, 255, 255)
-    cols = [("Destino", 55), ("Custo (Kz)", 30), ("(%)", 15), ("Status", 25), ("Motorista", 35), ("Data Entr.", 30), ("Obs", 87)]
+    cols = [("Destino", 60), ("Custo (Kz)", 30), ("(%)", 15), ("Status", 25), ("Motorista", 35), ("Data Entr.", 30), ("Obs", 82)]
     for nome, largura in cols:
         pdf.cell(largura, 10, f" {nome}", border=1, fill=True, align='C')
     pdf.ln()
     
-    # --- DADOS ---
+    # --- DADOS (MAPEAMENTO POR POSIÇÃO RÍGIDA) ---
     pdf.set_font("Arial", '', 8)
     for i in range(len(df)):
         linha = df.iloc[i]
-        custo = pd.to_numeric(linha[2], errors='coerce') or 0
+        custo = float(linha[2])
         perc = (custo / total_kz * 100) if total_kz > 0 else 0
         status = str(linha[3]).strip()
         
         # Cor do Status
         if status.lower() in ['ok', 'concluido', 'concluído']:
-            pdf.set_text_color(0, 128, 0) # Verde
+            pdf.set_text_color(0, 128, 0)
         elif status.lower() in ['atrasado', 'atraso']:
-            pdf.set_text_color(200, 0, 0) # Vermelho
+            pdf.set_text_color(200, 0, 0)
         else:
-            pdf.set_text_color(0, 0, 0) # Preto
+            pdf.set_text_color(0, 0, 0)
 
-        # MAPEAMENTO MANUAL PARA EVITAR TROCAS:
-        pdf.cell(55, 8, f" {str(linha[0])[:30]}", border=1)      # COLUNA A (Destino)
-        pdf.cell(30, 8, f"{custo:,.2f}", border=1, align='C')   # COLUNA C (Custo)
-        pdf.cell(15, 8, f"{perc:.1f}%", border=1, align='C')    # Calculado
-        pdf.cell(25, 8, f" {status}", border=1, align='C')      # COLUNA D (Status)
-        pdf.cell(35, 8, f" {str(linha[4])[:20]}", border=1, align='C') # COLUNA E (Motorista)
-        pdf.cell(30, 8, f" {str(linha[5])}", border=1, align='C') # COLUNA F (Data)
-        pdf.cell(87, 8, f" {str(linha[6])[:50]}", border=1, ln=True) # COLUNA G (Obs)
+        # Inserção de dados nas colunas corretas
+        pdf.cell(60, 8, f" {str(linha[0])[:35]}", border=1)      # Coluna A (Destino)
+        pdf.cell(30, 8, f"{custo:,.2f}", border=1, align='C')   # Coluna C (Custo)
+        pdf.cell(15, 8, f"{perc:.1f}%", border=1, align='C')    # Cálculo
+        pdf.cell(25, 8, f" {status}", border=1, align='C')      # Coluna D (Status)
+        pdf.cell(35, 8, f" {str(linha[4])[:20]}", border=1, align='C') # Coluna E (Motorista)
+        pdf.cell(30, 8, f" {str(linha[5])}", border=1, align='C')      # Coluna F (Data)
+        pdf.cell(82, 8, f" {str(linha[6])[:45]}", border=1, ln=True)   # Coluna G (Obs)
 
-    # --- TOTAL ---
+    # --- TOTAL GERAL ---
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Arial", 'B', 9)
     pdf.set_fill_color(240, 240, 240)
-    pdf.cell(55, 10, " TOTAL GERAL:", border=1, fill=True, align='R')
+    pdf.cell(60, 10, " TOTAL GERAL:", border=1, fill=True, align='R')
     pdf.set_text_color(200, 0, 0)
     pdf.cell(30, 10, f"{total_kz:,.2f}", border=1, fill=True, align='C')
     pdf.set_text_color(0, 0, 0)
     pdf.cell(15, 10, "100%", border=1, fill=True, align='C')
-    pdf.cell(177, 10, " Kwanzas (Relatorio de Gestao)", border=1, ln=True, fill=True)
+    pdf.cell(172, 10, " Kwanzas (Relatorio Oficial)", border=1, ln=True, fill=True)
 
-    # --- RODAPÉ (DATA DE GERAÇÃO) ---
+    # --- ASSINATURA E DATA DE RODAPÉ ---
     pdf.ln(10)
-    y_final = pdf.get_y()
+    y_base = pdf.get_y()
     if os.path.exists(caminho_grafico):
-        pdf.image(caminho_grafico, x=15, y=y_final, w=110)
+        pdf.image(caminho_grafico, x=15, y=y_base, w=110)
     
-    # Assinatura e Data de Geracao Final
-    pdf.set_xy(180, y_final + 10)
-    pdf.line(180, y_final + 15, 270, y_final + 15)
-    pdf.set_xy(180, y_final + 17)
+    # Assinatura
+    pdf.set_xy(180, y_base + 10)
+    pdf.line(180, y_base + 15, 270, y_base + 15)
+    pdf.set_xy(180, y_base + 17)
     pdf.set_font("Arial", 'B', 10)
     pdf.cell(90, 5, "Laurindo Sabalo", ln=True, align='C')
     
-    pdf.set_xy(180, y_final + 28) # ESPAÇO PARA A LINHA DA DATA
+    # DATA DE GERAÇÃO (RODAPÉ FINAL)
+    pdf.set_xy(180, y_base + 30) # Espaço grande para a data aparecer
     pdf.set_font("Arial", 'I', 8)
     pdf.set_text_color(120, 120, 120)
-    data_agora = datetime.now().strftime('%d/%m/%Y %H:%M')
-    pdf.cell(90, 5, f"Relatorio gerado em Luanda: {data_agora}", ln=True, align='C')
+    data_log = datetime.now().strftime('%d/%m/%Y %H:%M')
+    pdf.cell(90, 5, f"Relatorio extraido em: {data_log}", ln=True, align='C')
     
     pdf.output(nome_pdf)
 
 def executar():
     try:
-        df = pd.read_excel("meus_locais (1).xlsx")
+        nome_excel = "meus_locais (1).xlsx"
+        if not os.path.exists(nome_excel):
+            print("Erro: Arquivo Excel nao encontrado.")
+            return
+
+        df = pd.read_excel(nome_excel)
         
-        # Gráfico seguro
+        # Gerar Gráfico
         plt.figure(figsize=(7, 3.5))
-        plt.bar(df.iloc[:,0].str[:10], pd.to_numeric(df.iloc[:,2], errors='coerce'), color='#2E8B57') 
+        plt.bar(df.iloc[:,0].str[:10], pd.to_numeric(df.iloc[:,2], errors='coerce').fillna(0), color='#2E8B57') 
         plt.tight_layout()
         plt.savefig('grafico.png')
         plt.close()
         
-        criar_pdf_blindado(df, "Relatorio_Final_Laurindo.pdf", "grafico.png")
+        nome_pdf = "Relatorio_Final_Laurindo.pdf"
+        criar_pdf_final(df, nome_pdf, "grafico.png")
         
-        # Envio de Email
+        # Enviar Email
         meu_email = "laurindokutala.sabalo@gmail.com"
         senha = os.environ.get('MINHA_SENHA', '').replace(" ", "")
+        destinatario = "laurics10@gmail.com"
+        
         msg = MIMEMultipart()
-        msg['Subject'] = f"✅ RELATORIO FINALIZADO - {datetime.now().strftime('%d/%m/%Y')}"
-        msg.attach(MIMEText("Segue o relatorio com as colunas e data corrigidas.", 'plain'))
-        with open("Relatorio_Final_Laurindo.pdf", "rb") as f:
+        msg['Subject'] = f"🚀 RELATORIO CONCLUIDO: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+        msg.attach(MIMEText("Ola Laurindo, o relatorio foi processado com sucesso.", 'plain'))
+        
+        with open(nome_pdf, "rb") as f:
             anexo = MIMEApplication(f.read(), _subtype="pdf")
-            anexo.add_header('Content-Disposition', 'attachment', filename="Relatorio_Final_Laurindo.pdf")
+            anexo.add_header('Content-Disposition', 'attachment', filename=nome_pdf)
             msg.attach(anexo)
+            
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
             s.login(meu_email, senha)
-            s.sendmail(meu_email, "laurics10@gmail.com", msg.as_string())
+            s.sendmail(meu_email, destinatario, msg.as_string())
+        print("Sucesso!")
             
-    except Exception as e: print(f"Erro: {e}")
+    except Exception as e:
+        print(f"Erro no processo: {e}")
 
 if __name__ == "__main__":
     executar()
