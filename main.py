@@ -1,74 +1,144 @@
 import pandas as pd
 import os
 import smtplib
+import matplotlib.pyplot as plt
 from fpdf import FPDF
+from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
-from email.mime.text import MIMEText
-import random
+from datetime import datetime
+
+def criar_pdf_final(df, col_nome, col_custo, nome_pdf, caminho_grafico):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # --- CABEÇALHO (AZUL ROYAL - Igual ao que deu certo) ---
+    pdf.set_fill_color(0, 102, 204) 
+    pdf.rect(15, 15, 15, 15, 'F')  
+    pdf.set_text_color(255, 255, 255) 
+    pdf.set_font("Arial", 'B', 12)
+    pdf.text(18, 25, "LL") 
+
+    pdf.set_xy(35, 15)
+    pdf.set_font("Arial", 'B', 18)
+    pdf.set_text_color(0, 102, 204)
+    pdf.cell(100, 10, "LAURINDO LOGISTICA & SERVICOS", ln=True)
+    
+    pdf.set_font("Arial", 'I', 9)
+    pdf.set_text_color(100, 100, 100)
+    pdf.set_xy(35, 22)
+    pdf.cell(100, 5, "Excelencia e Confianca em Luanda", ln=True)
+    
+    pdf.ln(8)
+    pdf.set_draw_color(200, 200, 200) 
+    pdf.line(15, 35, 195, 35) 
+    pdf.ln(5)
+
+    # --- TABELA ---
+    pdf.set_font("Arial", 'B', 11)
+    pdf.set_fill_color(0, 102, 204)
+    pdf.set_text_color(255, 255, 255)
+    
+    pdf.cell(90, 10, " Destino / Localizacao", border=1, fill=True)
+    pdf.cell(50, 10, "Custo (Kz)", border=1, fill=True, align='C')
+    pdf.cell(40, 10, "Status", border=1, ln=True, fill=True, align='C')
+    
+    pdf.set_font("Arial", '', 10)
+    pdf.set_text_color(0, 0, 0)
+    
+    for _, row in df.iterrows():
+        # Lógica para evitar erros de texto muito longo
+        destino = str(row[col_nome])[:45]
+        custo = float(row[col_custo]) if pd.notna(row[col_custo]) else 0.0
+        
+        pdf.cell(90, 10, f" {destino}", border=1)
+        pdf.cell(50, 10, f"{custo:,.2f}", border=1, align='C')
+        
+        # Procura coluna Status ou usa Pendente
+        val_status = "Pendente"
+        for c in df.columns:
+            if 'Status' in str(c):
+                val_status = str(row[c])
+        
+        pdf.cell(40, 10, f" {val_status}", border=1, ln=True, align='C')
+    
+    # --- GRÁFICO (Se existir) ---
+    if os.path.exists(caminho_grafico):
+        pdf.ln(10)
+        pdf.image(caminho_grafico, x=35, w=130)
+    
+    # --- RODAPÉ ---
+    pdf.set_y(-35) 
+    pdf.set_draw_color(0, 0, 0)
+    pdf.line(70, pdf.get_y(), 140, pdf.get_y())
+    pdf.ln(2)
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 5, "Laurindo Sabalo - Direccao de Logistica", ln=True, align='C')
+    pdf.set_font("Arial", 'I', 9)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 5, f"Gerado em Luanda - Data: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='C')
+    
+    pdf.output(nome_pdf)
+
+def enviar_email(pdf_nome):
+    meu_email = "laurindokutala.sabalo@gmail.com"
+    senha = os.environ.get('MINHA_SENHA', '').replace(" ", "")
+    destinatario = "laurinds10@gmail.com"
+    
+    msg = MIMEMultipart()
+    msg['Subject'] = f"REATORIO LOGISTICA ATUALIZADO: {datetime.now().strftime('%d/%m/%Y')}"
+    msg['From'] = meu_email
+    msg['To'] = destinatario
+    msg.attach(MIMEText("Relatorio oficial gerado automaticamente pelo sistema de logistica.", 'plain'))
+    
+    if os.path.exists(pdf_nome):
+        with open(pdf_nome, "rb") as f:
+            anexo = MIMEApplication(f.read(), _subtype="pdf")
+            anexo.add_header('Content-Disposition', 'attachment', filename=pdf_nome)
+            msg.attach(anexo)
+            
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
+        s.login(meu_email, senha)
+        s.sendmail(meu_email, destinatario, msg.as_string())
 
 def executar():
+    # Tenta encontrar o arquivo pelo nome novo ou antigo
+    excel = "dados.xlsx" if os.path.exists("dados.xlsx") else "meus_locais (1).xlsx"
+    
+    if not os.path.exists(excel):
+        print(f"Erro: Arquivo {excel} nao encontrado.")
+        return
+
     try:
-        # 1. LER O EXCEL (dados.xlsx)
-        df = pd.read_excel("dados.xlsx")
+        df = pd.read_excel(excel)
+        df.columns = [str(c).strip() for c in df.columns]
         
-        # 2. CONFIGURAR O PDF (Horizontal)
-        pdf = FPDF('L', 'mm', 'A4')
-        pdf.add_page()
-        pdf.set_font("Arial", 'B', 16)
-        pdf.cell(0, 10, "RELATORIO DE LOGISTICA - LAURINDO SABALO", ln=True, align='C')
-        pdf.ln(10)
+        # Identifica as colunas dinamicamente
+        col_nome = df.columns[0] # Primeira coluna é o destino
+        col_custo = ""
+        for c in df.columns:
+            if 'Custo' in c or 'custo' in c:
+                col_custo = c
+                break
         
-        # Cabeçalho Azul com Letras Brancas
-        pdf.set_fill_color(0, 51, 102) 
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Arial", 'B', 11)
-        pdf.cell(85, 10, " DESTINO", 1, 0, 'L', True)
-        pdf.cell(45, 10, " CUSTO (Kz)", 1, 0, 'C', True)
-        pdf.cell(60, 10, " MOTORISTA", 1, 0, 'C', True)
-        pdf.cell(45, 10, " DATA", 1, 1, 'C', True)
-        
-        pdf.set_text_color(0, 0, 0) # Volta para preto
-        pdf.set_font("Arial", '', 10)
-        
-        # 3. PREENCHER OS DADOS (Lógica Inteligente)
-        for i in range(len(df)):
-            linha = df.iloc[i].dropna().tolist() # Remove espaços vazios
-            
-            # Garante que temos pelo menos as 4 informações necessárias
-            destino = str(linha[0])[:40] if len(linha) > 0 else "---"
-            custo = str(linha[2]) if len(linha) > 2 else "---"
-            motorista = str(linha[4]) if len(linha) > 4 else "---"
-            data = str(linha[5]) if len(linha) > 5 else "---"
-            
-            pdf.cell(85, 10, f" {destino}", 1)
-            pdf.cell(45, 10, f" {custo}", 1, 0, 'C')
-            pdf.cell(60, 10, f" {motorista}", 1, 0, 'C')
-            pdf.cell(45, 10, f" {data}", 1, 1, 'C')
+        if not col_custo:
+            print("Erro: Nao encontrei coluna com nome 'Custo'")
+            return
 
-        nome_pdf = "Relatorio_Final_Concluido.pdf"
-        pdf.output(nome_pdf)
-
-        # 4. ENVIAR POR EMAIL
-        meu_email = "laurindokutala.sabalo@gmail.com"
-        senha = os.environ.get('MINHA_SENHA', '').replace(" ", "")
+        # Gera gráfico
+        plt.figure(figsize=(8, 4))
+        # Pega as 5 maiores rotas para o gráfico não ficar bagunçado
+        dados_grafico = df.head(5)
+        plt.bar(dados_grafico[col_nome].astype(str).str[:15], dados_grafico[col_custo], color='royalblue') 
+        plt.title('Custos de Transporte - Luanda')
+        plt.ylabel('Kz')
+        plt.savefig('grafico.png')
+        plt.close()
         
-        msg = MIMEMultipart()
-        msg['Subject'] = "RELATORIO DE LOGISTICA - ENTREGA FINAL"
-        msg['From'] = meu_email
-        msg['To'] = "laurinds10@gmail.com"
-        msg.attach(MIMEText("Ola Laurindo, o seu robo terminou o processamento dos dados.", 'plain'))
-
-        with open(nome_pdf, "rb") as f:
-            part = MIMEApplication(f.read(), _subtype="pdf")
-            part.add_header('Content-Disposition', 'attachment', filename=nome_pdf)
-            msg.attach(part)
-
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
-            s.login(meu_email, senha)
-            s.sendmail(meu_email, "laurinds10@gmail.com", msg.as_string())
-        
-        print("MISSÃO CUMPRIDA! E-mail enviado.")
+        nome_pdf = "Relatorio_Oficial_Logistica.pdf"
+        criar_pdf_final(df, col_nome, col_custo, nome_pdf, 'grafico.png')
+        enviar_email(nome_pdf)
+        print("RELATORIO ENVIADO COM SUCESSO!")
 
     except Exception as e:
         print(f"Erro no processamento: {e}")
