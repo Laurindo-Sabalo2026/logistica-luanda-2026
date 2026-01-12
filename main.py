@@ -1,88 +1,101 @@
 import pandas as pd
 import os
 import smtplib
+import matplotlib.pyplot as plt
 from fpdf import FPDF
+from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
-from email.mime.text import MIMEText
 from datetime import datetime
 
-def gerar_pdf_profissional(df):
-    pdf = FPDF('L', 'mm', 'A4')
+class PDF_Logistica(FPDF):
+    def header(self):
+        self.set_fill_color(0, 102, 204)
+        self.rect(10, 10, 15, 15, 'F')
+        self.set_xy(30, 10)
+        self.set_font("Arial", 'B', 16)
+        self.set_text_color(0, 102, 204)
+        self.cell(100, 10, "LAURINDO LOGISTICA & SERVICOS", ln=True)
+        self.line(10, 30, 287, 30)
+        self.ln(10)
+
+def criar_pdf(df, nome_pdf, caminho_grafico):
+    pdf = PDF_Logistica('L', 'mm', 'A4')
     pdf.add_page()
     
-    # --- TOPO PROFISSIONAL ---
-    pdf.set_fill_color(0, 51, 102) 
-    pdf.rect(0, 0, 297, 30, 'F')
-    pdf.set_font("Arial", 'B', 18)
-    pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 15, "LAURINDO LOGISTICA & SERVICOS", ln=True, align='C')
-    pdf.set_font("Arial", 'I', 10)
-    pdf.cell(0, 5, "Gestao de Custos e Operacoes - Luanda", ln=True, align='C')
-    
-    pdf.ln(15)
-    
-    # --- TABELA DE DADOS ---
+    # Cabeçalho da Tabela
     pdf.set_font("Arial", 'B', 10)
-    pdf.set_text_color(0, 0, 0)
     pdf.set_fill_color(200, 220, 255)
+    # Definimos as colunas exatamente como no seu Excel
+    cols = ["Destino", "Bairro", "Custo", "Status", "Motorista", "Data"]
+    larguras = [60, 40, 30, 30, 40, 30]
     
-    # Cabecalhos
-    pdf.cell(80, 10, " Destino", 1, 0, 'L', True)
-    pdf.cell(40, 10, " Custo (Kz)", 1, 0, 'C', True)
-    pdf.cell(40, 10, " Status", 1, 0, 'C', True)
-    pdf.cell(50, 10, " Motorista", 1, 0, 'C', True)
-    pdf.cell(40, 10, " Data Entr.", 1, 1, 'C', True)
-    
-    pdf.set_font("Arial", '', 10)
-    # Preenchimento garantindo a ordem das colunas do seu Excel
+    for i, col in enumerate(cols):
+        pdf.cell(larguras[i], 10, col, border=1, fill=True, align='C')
+    pdf.ln()
+
+    # Dados
+    pdf.set_font("Arial", '', 9)
     for i in range(len(df)):
         linha = df.iloc[i]
-        pdf.cell(80, 10, f" {str(linha.iloc[0])[:35]}", 1) # Destino
-        pdf.cell(40, 10, f" {str(linha.iloc[2])}", 1, 0, 'C') # Custo
-        pdf.cell(40, 10, f" {str(linha.iloc[3])}", 1, 0, 'C') # Status
-        pdf.cell(50, 10, f" {str(linha.iloc[4])}", 1, 0, 'C') # Motorista
-        pdf.cell(40, 10, f" {str(linha.iloc[5])}", 1, 1, 'C') # Data
+        # Usamos iloc para garantir que pegamos a coluna pela posição (0, 1, 2...)
+        pdf.cell(60, 8, str(linha.iloc[0])[:35], border=1) # Coluna A
+        pdf.cell(40, 8, str(linha.iloc[1])[:20], border=1) # Coluna B
+        pdf.cell(30, 8, str(linha.iloc[2]), border=1, align='C') # Coluna C
+        pdf.cell(30, 8, str(linha.iloc[3]), border=1, align='C') # Coluna D
+        pdf.cell(40, 8, str(linha.iloc[4]), border=1, align='C') # Coluna E
+        pdf.cell(30, 8, str(linha.iloc[5]), border=1, align='C', ln=True) # Coluna F
 
-    # --- RODAPE ---
-    pdf.ln(20)
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 10, "__________________________", ln=True, align='R')
-    pdf.cell(0, 5, "Laurindo Sabalo    ", ln=True, align='R')
-    pdf.set_font("Arial", 'I', 8)
-    pdf.cell(0, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='R')
+    # Gráfico
+    pdf.ln(10)
+    if os.path.exists(caminho_grafico):
+        pdf.image(caminho_grafico, x=10, w=150)
     
-    nome_arq = "Relatorio_Logistica_Final.pdf"
-    pdf.output(nome_arq)
-    return nome_arq
+    # Assinatura
+    pdf.ln(10)
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 10, "Laurindo Sabalo", ln=True, align='R')
+    pdf.output(nome_pdf)
 
-def enviar():
+def executar():
     try:
         df = pd.read_excel("meus_locais (1).xlsx")
-        pdf_anexo = gerar_pdf_profissional(df)
         
+        # Gerar Gráfico
+        plt.figure(figsize=(10, 5))
+        plt.bar(df.iloc[:, 0].str[:10], df.iloc[:, 2], color='blue')
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.savefig('grafico.png')
+        plt.close()
+
+        nome_pdf = "Relatorio_Laurindo_Recuperado.pdf"
+        criar_pdf(df, nome_pdf, 'grafico.png')
+
+        # Envio de Email
         meu_email = "laurindokutala.sabalo@gmail.com"
         senha = os.environ.get('MINHA_SENHA', '').replace(" ", "")
+        # Enviando para o novo destino que sabemos que funciona
         destino = "laurinds10@gmail.com"
-        
+
         msg = MIMEMultipart()
-        msg['Subject'] = f"RELATORIO LOGISTICA: {datetime.now().strftime('%d/%m/%Y')}"
-        msg['From'] = remetente = meu_email
+        msg['Subject'] = "Relatorio de Logistica - Versao Recuperada"
+        msg['From'] = meu_email
         msg['To'] = destino
-        
-        msg.attach(MIMEText("Bom dia Laurindo, segue o relatorio processado.", 'plain'))
-        
-        with open(pdf_anexo, "rb") as f:
-            part = MIMEApplication(f.read(), _subtype="pdf")
-            part.add_header('Content-Disposition', 'attachment', filename=pdf_anexo)
-            msg.attach(part)
-            
+        msg.attach(MIMEText("Segue o relatorio no formato que deu certo as 01:09.", 'plain'))
+
+        with open(nome_pdf, "rb") as f:
+            anexo = MIMEApplication(f.read(), _subtype="pdf")
+            anexo.add_header('Content-Disposition', 'attachment', filename=nome_pdf)
+            msg.attach(anexo)
+
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
             s.login(meu_email, senha)
             s.sendmail(meu_email, destino, msg.as_string())
-        print("RELATORIO ENVIADO!")
+        print("Enviado com sucesso!")
+
     except Exception as e:
-        print(f"ERRO: {e}")
+        print(f"Erro: {e}")
 
 if __name__ == "__main__":
-    enviar()
+    executar()
