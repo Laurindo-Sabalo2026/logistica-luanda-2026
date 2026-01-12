@@ -7,70 +7,65 @@ from email.mime.application import MIMEApplication
 from email.mime.text import MIMEText
 from datetime import datetime
 
-# Criar PDF sem firulas para não travar
-def criar_pdf_simples(df, nome_pdf):
+def gerar_pdf_limpo(df):
     pdf = FPDF('L', 'mm', 'A4')
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, "LAURINDO LOGISTICA - RELATORIO DE EMERGENCIA", ln=True, align='C')
-    pdf.ln(10)
+    pdf.set_text_color(0, 102, 204)
+    pdf.cell(0, 15, "LAURINDO LOGISTICA - RELATORIO DE CONTROLE", ln=True, align='C')
+    pdf.ln(5)
     
-    # Cabeçalho básico
-    pdf.set_font("Arial", 'B', 10)
-    pdf.set_fill_color(200, 200, 200)
-    pdf.cell(80, 10, " Destino", 1, 0, 'L', True)
+    # Tabela simplificada para garantir o alinhamento
+    pdf.set_font("Arial", 'B', 9)
+    pdf.set_fill_color(200, 220, 255)
+    pdf.cell(70, 10, " Destino", 1, 0, 'L', True)
     pdf.cell(40, 10, " Custo (Kz)", 1, 0, 'C', True)
     pdf.cell(50, 10, " Motorista", 1, 0, 'C', True)
-    pdf.cell(40, 10, " Data", 1, 1, 'C', True)
+    pdf.cell(40, 10, " Data Entr.", 1, 1, 'C', True)
     
-    # Dados puros do Excel (Forçando a posição das colunas)
-    pdf.set_font("Arial", '', 10)
+    pdf.set_font("Arial", '', 9)
     for i in range(len(df)):
         linha = df.iloc[i]
-        pdf.cell(80, 10, f" {str(linha.iloc[0])[:35]}", 1)
-        pdf.cell(40, 10, f" {str(linha.iloc[2])}", 1, 0, 'C')
-        pdf.cell(50, 10, f" {str(linha.iloc[4])}", 1, 0, 'C')
-        pdf.cell(40, 10, f" {str(linha.iloc[5])}", 1, 1, 'C')
+        pdf.cell(70, 9, f" {str(linha.iloc[0])[:35]}", 1)
+        pdf.cell(40, 9, f" {str(linha.iloc[2])}", 1, 0, 'C')
+        # AQUI ESTA O SEGREDO: Forçamos a coluna 4 (Motorista)
+        pdf.cell(50, 9, f" {str(linha.iloc[4])[:20]}", 1, 0, 'C')
+        pdf.cell(40, 9, f" {str(linha.iloc[5])}", 1, 1, 'C')
 
-    # Assinatura e Data de Geração
     pdf.ln(20)
-    pdf.cell(0, 10, "__________________________", ln=True, align='R')
-    pdf.cell(0, 10, "Laurindo Sabalo    ", ln=True, align='R')
+    pdf.set_font("Arial", 'B', 10)
+    pdf.cell(0, 10, "________________________________", ln=True, align='R')
+    pdf.cell(0, 5, "Laurindo Sabalo    ", ln=True, align='R')
     pdf.set_font("Arial", 'I', 8)
-    pdf.cell(0, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='R')
-    pdf.output(nome_pdf)
+    pdf.cell(0, 10, f"Extraido em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='R')
+    pdf.output("Relatorio_Laurindo.pdf")
 
-def executar():
+def enviar():
     try:
-        # 1. Ler o Excel
         df = pd.read_excel("meus_locais (1).xlsx")
-        nome_pdf = "Relatorio_Laurindo_Urgente.pdf"
+        gerar_pdf_limpo(df)
         
-        # 2. Criar o PDF
-        criar_pdf_simples(df, nome_pdf)
-        
-        # 3. Enviar e-mail (Sem validações complexas)
         meu_email = "laurindokutala.sabalo@gmail.com"
         senha = os.environ.get('MINHA_SENHA', '').replace(" ", "")
         
         msg = MIMEMultipart()
-        msg['Subject'] = "RELATORIO RECUPERADO - LAURINDO"
+        msg['Subject'] = f"🚀 REENVIO: Relatorio Laurindo {datetime.now().strftime('%H:%M')}"
         msg['From'] = meu_email
         msg['To'] = "laurics10@gmail.com"
-        msg.attach(MIMEText("Segue o relatorio em modo de seguranca.", 'plain'))
+        msg.attach(MIMEText("Relatorio gerado com mapeamento fixo de colunas.", 'plain'))
         
-        with open(nome_pdf, "rb") as f:
-            anexo = MIMEApplication(f.read(), _subtype="pdf")
-            anexo.add_header('Content-Disposition', 'attachment', filename=nome_pdf)
-            msg.attach(anexo)
+        with open("Relatorio_Laurindo.pdf", "rb") as f:
+            part = MIMEApplication(f.read(), _subtype="pdf")
+            part.add_header('Content-Disposition', 'attachment', filename="Relatorio_Laurindo.pdf")
+            msg.attach(part)
             
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
-            s.login(meu_email, senha)
-            s.sendmail(meu_email, "laurics10@gmail.com", msg.as_string())
-        print("Enviado com sucesso!")
-
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server.login(meu_email, senha)
+        server.sendmail(meu_email, "laurics10@gmail.com", msg.as_string())
+        server.quit()
+        print("EMAIL ENVIADO!")
     except Exception as e:
-        print(f"Erro: {e}")
+        print(f"ERRO: {e}")
 
 if __name__ == "__main__":
-    executar()
+    enviar()
