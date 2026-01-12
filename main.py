@@ -5,49 +5,44 @@ from fpdf import FPDF
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from email.mime.text import MIMEText
-from datetime import datetime
 import random
 
 def executar():
     try:
-        # Carregar Excel
-        df = pd.read_excel("meus_locais (1).xlsx")
+        # Tenta nomes diferentes caso você não tenha renomeado ainda
+        arquivos_possiveis = ["dados.xlsx", "meus_locais (1).xlsx", "meus_locais.xlsx"]
+        arquivo_alvo = None
         
-        # Gerar PDF
-        pdf = FPDF('L', 'mm', 'A4')
-        pdf.add_page()
-        pdf.set_font("Arial", 'B', 16)
-        pdf.cell(0, 10, "RELATORIO DE LOGISTICA - LAURINDO SABALO", ln=True, align='C')
-        pdf.ln(10)
+        for nome in arquivos_possiveis:
+            if os.path.exists(nome):
+                arquivo_alvo = nome
+                break
         
-        # Tabela (Colunas: Destino, Custo, Motorista, Data)
-        pdf.set_font("Arial", 'B', 10)
-        pdf.cell(80, 10, " Destino", 1)
-        pdf.cell(40, 10, " Custo", 1)
-        pdf.cell(50, 10, " Motorista", 1)
-        pdf.cell(40, 10, " Data", 1, 1)
-        
-        pdf.set_font("Arial", '', 10)
-        for i in range(len(df)):
-            linha = df.iloc[i]
-            pdf.cell(80, 10, str(linha.iloc[0])[:35], 1) # Coluna A
-            pdf.cell(40, 10, str(linha.iloc[2]), 1)       # Coluna C
-            pdf.cell(50, 10, str(linha.iloc[4]), 1)       # Coluna E
-            pdf.cell(40, 10, str(linha.iloc[5]), 1, 1)    # Coluna F
+        if not arquivo_alvo:
+            print("ERRO: Arquivo Excel não encontrado no GitHub!")
+            return
 
-        # Nome aleatorio para evitar bloqueio
-        nome_pdf = f"Relatorio_Final_{random.randint(1000,9999)}.pdf"
+        df = pd.read_excel(arquivo_alvo)
+        
+        # Criar PDF Simples para teste rápido
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(0, 10, "RELATORIO LOGISTICA - TESTE FINAL", ln=True, align='C')
+        
+        nome_pdf = f"Relatorio_{random.randint(100,999)}.pdf"
         pdf.output(nome_pdf)
 
-        # Envio
+        # Configuração de Email
         meu_email = "laurindokutala.sabalo@gmail.com"
         senha = os.environ.get('MINHA_SENHA', '').replace(" ", "")
-        
+        destino = "laurinds10@gmail.com"
+
         msg = MIMEMultipart()
-        msg['Subject'] = f"Relatorio Logistica - Ref {random.randint(100,999)}"
+        msg['Subject'] = f"Relatorio de Logistica - Ref {random.randint(10,99)}"
         msg['From'] = meu_email
-        msg['To'] = "laurinds10@gmail.com"
-        msg.attach(MIMEText("Segue o relatorio atualizado.", 'plain'))
+        msg['To'] = destino
+        msg.attach(MIMEText("O robô executou com sucesso. Veja o anexo.", 'plain'))
 
         with open(nome_pdf, "rb") as f:
             part = MIMEApplication(f.read(), _subtype="pdf")
@@ -56,11 +51,12 @@ def executar():
 
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
             s.login(meu_email, senha)
-            s.sendmail(meu_email, "laurinds10@gmail.com", msg.as_string())
-        print("ENVIADO COM SUCESSO!")
+            s.sendmail(meu_email, destino, msg.as_string())
+        
+        print("ENVIADO! Verifique agora a sua caixa de entrada.")
 
     except Exception as e:
-        print(f"Erro: {e}")
+        print(f"FALHA: {e}")
 
 if __name__ == "__main__":
     executar()
