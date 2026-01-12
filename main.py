@@ -7,99 +7,82 @@ from email.mime.application import MIMEApplication
 from email.mime.text import MIMEText
 from datetime import datetime
 
-def gerar_pdf_oficial(df):
-    # Configuração da página (L = Paisagem/A4)
+def gerar_pdf_profissional(df):
     pdf = FPDF('L', 'mm', 'A4')
     pdf.add_page()
     
-    # --- CABEÇALHO PROFISSIONAL ---
-    pdf.set_fill_color(0, 51, 102) # Azul Escuro
-    pdf.rect(0, 0, 297, 35, 'F')
-    pdf.set_font("Arial", 'B', 20)
+    # --- TOPO PROFISSIONAL ---
+    pdf.set_fill_color(0, 51, 102) 
+    pdf.rect(0, 0, 297, 30, 'F')
+    pdf.set_font("Arial", 'B', 18)
     pdf.set_text_color(255, 255, 255)
     pdf.cell(0, 15, "LAURINDO LOGISTICA & SERVICOS", ln=True, align='C')
-    pdf.set_font("Arial", 'I', 11)
-    pdf.cell(0, 5, "Relatorio Oficial de Monitoramento - Luanda", ln=True, align='C')
+    pdf.set_font("Arial", 'I', 10)
+    pdf.cell(0, 5, "Gestao de Custos e Operacoes - Luanda", ln=True, align='C')
     
-    pdf.ln(20)
+    pdf.ln(15)
     
-    # --- TABELA DE DADOS (MAPEAMENTO RIGIDO) ---
-    # Larguras: Destino(80), Custo(40), Status(30), Motorista(50), Data(40)
+    # --- TABELA DE DADOS ---
     pdf.set_font("Arial", 'B', 10)
     pdf.set_text_color(0, 0, 0)
-    pdf.set_fill_color(220, 230, 241) # Azul claro para o topo da tabela
+    pdf.set_fill_color(200, 220, 255)
     
+    # Cabecalhos
     pdf.cell(80, 10, " Destino", 1, 0, 'L', True)
     pdf.cell(40, 10, " Custo (Kz)", 1, 0, 'C', True)
-    pdf.cell(30, 10, " Status", 1, 0, 'C', True)
+    pdf.cell(40, 10, " Status", 1, 0, 'C', True)
     pdf.cell(50, 10, " Motorista", 1, 0, 'C', True)
     pdf.cell(40, 10, " Data Entr.", 1, 1, 'C', True)
     
     pdf.set_font("Arial", '', 10)
-    # Loop para preencher a tabela usando a posição das colunas do Excel
+    # Preenchimento garantindo a ordem das colunas do seu Excel
     for i in range(len(df)):
         linha = df.iloc[i]
-        pdf.cell(80, 10, f" {str(linha.iloc[0])[:35]}", 1)      # Coluna A
-        pdf.cell(40, 10, f" {str(linha.iloc[2])}", 1, 0, 'C')   # Coluna C
-        pdf.cell(30, 10, f" {str(linha.iloc[3])}", 1, 0, 'C')   # Coluna D
-        pdf.cell(50, 10, f" {str(linha.iloc[4])[:20]}", 1, 0, 'C') # Coluna E
-        pdf.cell(40, 10, f" {str(linha.iloc[5])}", 1, 1, 'C')   # Coluna F
+        pdf.cell(80, 10, f" {str(linha.iloc[0])[:35]}", 1) # Destino
+        pdf.cell(40, 10, f" {str(linha.iloc[2])}", 1, 0, 'C') # Custo
+        pdf.cell(40, 10, f" {str(linha.iloc[3])}", 1, 0, 'C') # Status
+        pdf.cell(50, 10, f" {str(linha.iloc[4])}", 1, 0, 'C') # Motorista
+        pdf.cell(40, 10, f" {str(linha.iloc[5])}", 1, 1, 'C') # Data
 
-    # --- RODAPÉ COM ASSINATURA ---
-    pdf.ln(25)
-    pdf.set_font("Arial", 'B', 12)
+    # --- RODAPE ---
+    pdf.ln(20)
+    pdf.set_font("Arial", 'B', 11)
     pdf.cell(0, 10, "__________________________", ln=True, align='R')
     pdf.cell(0, 5, "Laurindo Sabalo    ", ln=True, align='R')
+    pdf.set_font("Arial", 'I', 8)
+    pdf.cell(0, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='R')
     
-    # LINHA DA DATA (O que tínhamos planeado)
-    pdf.set_font("Arial", 'I', 9)
-    pdf.set_text_color(100, 100, 100)
-    data_luanda = datetime.now().strftime('%d/%m/%Y %H:%M')
-    pdf.cell(0, 10, f"Documento gerado em Luanda: {data_luanda}", ln=True, align='R')
-    
-    nome_ficheiro = "Relatorio_Logistica_LCS.pdf"
-    pdf.output(nome_ficheiro)
-    return nome_ficheiro
+    nome_arq = "Relatorio_Logistica_Final.pdf"
+    pdf.output(nome_arq)
+    return nome_arq
 
-def executar_sistema():
+def enviar():
     try:
-        # 1. Leitura do Excel
-        ficheiro_excel = "meus_locais (1).xlsx"
-        if not os.path.exists(ficheiro_excel):
-            print("Erro: Excel nao encontrado!")
-            return
-            
-        df = pd.read_excel(ficheiro_excel)
-        pdf_final = gerar_pdf_oficial(df)
+        df = pd.read_excel("meus_locais (1).xlsx")
+        pdf_anexo = gerar_pdf_profissional(df)
         
-        # 2. Configuração de E-mail
-        remetente = "laurindokutala.sabalo@gmail.com"
+        meu_email = "laurindokutala.sabalo@gmail.com"
         senha = os.environ.get('MINHA_SENHA', '').replace(" ", "")
-        destinatario = "laurinds10@gmail.com"
+        destino = "laurinds10@gmail.com"
         
         msg = MIMEMultipart()
-        msg['Subject'] = f"RELATORIO CONCLUIDO - {datetime.now().strftime('%d/%m/%Y')}"
-        msg['From'] = remetente
-        msg['To'] = destinatario
+        msg['Subject'] = f"RELATORIO LOGISTICA: {datetime.now().strftime('%d/%m/%Y')}"
+        msg['From'] = remetente = meu_email
+        msg['To'] = destino
         
-        corpo = "Bom dia Laurindo,\n\nSegue em anexo o relatorio de logistica com o mapeamento de colunas corrigido."
-        msg.attach(MIMEText(corpo, 'plain'))
+        msg.attach(MIMEText("Bom dia Laurindo, segue o relatorio processado.", 'plain'))
         
-        # 3. Anexo do PDF
-        with open(pdf_final, "rb") as f:
-            anexo = MIMEApplication(f.read(), _subtype="pdf")
-            anexo.add_header('Content-Disposition', 'attachment', filename=pdf_final)
-            msg.attach(anexo)
+        with open(pdf_anexo, "rb") as f:
+            part = MIMEApplication(f.read(), _subtype="pdf")
+            part.add_header('Content-Disposition', 'attachment', filename=pdf_anexo)
+            msg.attach(part)
             
-        # 4. Envio Real
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
-            s.login(remetente, senha)
-            s.sendmail(remetente, destinatario, msg.as_string())
-            
-        print("SUCESSO: O relatorio foi enviado para laurinds10@gmail.com")
-
+            s.login(meu_email, senha)
+            s.sendmail(meu_email, destino, msg.as_string())
+        print("RELATORIO ENVIADO!")
     except Exception as e:
-        print(f"Ocorreu um erro: {e}")
+        print(f"ERRO: {e}")
 
 if __name__ == "__main__":
-    executar_sistema()
+    enviar()
