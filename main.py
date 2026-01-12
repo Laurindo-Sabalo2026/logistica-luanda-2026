@@ -9,40 +9,45 @@ import random
 
 def executar():
     try:
-        # Tenta nomes diferentes caso você não tenha renomeado ainda
-        arquivos_possiveis = ["dados.xlsx", "meus_locais (1).xlsx", "meus_locais.xlsx"]
-        arquivo_alvo = None
+        # 1. Carregar os dados do seu Excel
+        arquivo = "meus_locais (1).xlsx"
+        df = pd.read_excel(arquivo)
         
-        for nome in arquivos_possiveis:
-            if os.path.exists(nome):
-                arquivo_alvo = nome
-                break
-        
-        if not arquivo_alvo:
-            print("ERRO: Arquivo Excel não encontrado no GitHub!")
-            return
-
-        df = pd.read_excel(arquivo_alvo)
-        
-        # Criar PDF Simples para teste rápido
-        pdf = FPDF()
+        # 2. Criar o PDF com os dados reais
+        pdf = FPDF('L', 'mm', 'A4')
         pdf.add_page()
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, "RELATORIO LOGISTICA - TESTE FINAL", ln=True, align='C')
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(0, 10, "RELATORIO DE LOGISTICA COMPLETO", ln=True, align='C')
+        pdf.ln(10)
         
-        nome_pdf = f"Relatorio_{random.randint(100,999)}.pdf"
+        # Cabeçalho da Tabela
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(80, 10, " Destino", 1)
+        pdf.cell(40, 10, " Custo (Kz)", 1)
+        pdf.cell(50, 10, " Motorista", 1)
+        pdf.cell(40, 10, " Data", 1, 1)
+        
+        # Linhas da Tabela (Dados do Excel)
+        pdf.set_font("Arial", '', 10)
+        for i in range(len(df)):
+            linha = df.iloc[i]
+            pdf.cell(80, 10, f" {str(linha.iloc[0])[:35]}", 1) # Coluna A
+            pdf.cell(40, 10, f" {str(linha.iloc[2])}", 1)       # Coluna C
+            pdf.cell(50, 10, f" {str(linha.iloc[4])}", 1)       # Coluna E
+            pdf.cell(40, 10, f" {str(linha.iloc[5])}", 1, 1)    # Coluna F
+
+        nome_pdf = f"Relatorio_Final_{random.randint(1000,9999)}.pdf"
         pdf.output(nome_pdf)
 
-        # Configuração de Email
+        # 3. Enviar por Email
         meu_email = "laurindokutala.sabalo@gmail.com"
         senha = os.environ.get('MINHA_SENHA', '').replace(" ", "")
-        destino = "laurinds10@gmail.com"
-
+        
         msg = MIMEMultipart()
-        msg['Subject'] = f"Relatorio de Logistica - Ref {random.randint(10,99)}"
+        msg['Subject'] = f"RELATORIO LOGISTICA - DADOS REAIS - Ref {random.randint(100,999)}"
         msg['From'] = meu_email
-        msg['To'] = destino
-        msg.attach(MIMEText("O robô executou com sucesso. Veja o anexo.", 'plain'))
+        msg['To'] = "laurinds10@gmail.com"
+        msg.attach(MIMEText("Ola Laurindo, aqui esta o relatorio com todos os dados do Excel.", 'plain'))
 
         with open(nome_pdf, "rb") as f:
             part = MIMEApplication(f.read(), _subtype="pdf")
@@ -51,12 +56,12 @@ def executar():
 
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
             s.login(meu_email, senha)
-            s.sendmail(meu_email, destino, msg.as_string())
+            s.sendmail(meu_email, "laurinds10@gmail.com", msg.as_string())
         
-        print("ENVIADO! Verifique agora a sua caixa de entrada.")
+        print("RELATORIO COMPLETO ENVIADO!")
 
     except Exception as e:
-        print(f"FALHA: {e}")
+        print(f"Erro ao processar: {e}")
 
 if __name__ == "__main__":
     executar()
